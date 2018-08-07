@@ -21,8 +21,8 @@ Apache默认的根目录在`/Library/WebServer/Documents/`下。
 
 找到`DocumentRoot`附近，修改为：
 ```
-DocumentRoot "/Users/apple/Sites"
-<Directory "/Users/apple/Sites">
+DocumentRoot "/Users/apple(当前用户名)/Sites"
+<Directory "/Users/apple(当前用户名)/Sites">
 ```
 
 之后找到`Options FollowSymLinks`，修改为`Options Indexes FollowSymLinks`。
