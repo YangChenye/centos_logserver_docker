@@ -10,7 +10,7 @@ Mac自带了Apache环境，我们要做的只是稍微配置一下
 Apache默认的根目录在`/Library/WebServer/Documents/`下。
 ### 2.&nbsp;配置服务器
 在/Users/apple(当前用户名)目录下创建一个名为"Sites"的文件夹：
-`mkdir /Users/apple/Sites`
+`mkdir /Users/apple(当前用户名)/Sites`
 
 切换工作目录下：
 `cd /etc/apache2`
