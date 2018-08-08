@@ -66,7 +66,7 @@ rsyslogd -v
 `vi /etc/rsyslog.conf`
 
 添加以下声明到文件底部。将IP地址替换为你的远程rsyslog服务器的IP地址：
-`*.*@192.168.1.25:514`
+`*.* @192.168.1.25:514`
 
 上面的声明告诉rsyslog守护进程，将系统上各个设备的各种日志消息路由到远程rsyslog服务器（192.168.1.25）的UDP端口514。
 
@@ -97,13 +97,39 @@ systemctl restart rsyslog.service
 
 ## 三.&nbsp;使用CentOS镜像创建Logserver节点
 ### 1.&nbsp;创建container
-使用命令`docker run -i -t -d centos /bin/bash`，可以启动一个一直停留在后台运行的CentOS。如果少了/bin/bash的话，Docker会生成一个Container但是马上就停止了，不会一直运行，即使有了-d参数。
+使用命令`docker run -i -t -d -p 8000:80 -p 2222:22 -p 10000:514 --privileged centos /usr/sbin/init`，可以启动一个一直停留在后台运行的CentOS。如果少了/bin/bash的话，Docker会生成一个Container但是马上就停止了，不会一直运行，即使有了-d参数。
 
 使用命令`docker exec -it <容器名或者ID> /bin/bash`，可以进入这个CentOS的容器。
 
 
 ### 2.&nbsp;接收user发送的log
-#### 1)&nbsp;
+本段一部分参考[CentOS上配置rsyslog客户端用以远程记录日志](https://www.linuxidc.com/Linux/2015-02/112989.htm)和[centos7的syslog知识点](https://blog.csdn.net/u011630575/article/details/51966725)
+#### 1)&nbsp;安装Rsyslog守护进程
+在CentOS 6和7上，rsyslog守护进程已经预先安装了。要验证rsyslog是否已经安装到你的CentOS系统上，请执行如下命令：
+```
+rpm -qa | grep rsyslog
+rsyslogd -v
+```
+如果处于某种原因，rsyslog守护进程没有出现在你的系统中，请使用以下命令来安装：`yum install rsyslog`。
+
+#### 2)&nbsp;配置Rsyslog服务器
+将所有客户端的系统日志送给远程日志服务器，远程服务器用来接收和集中所有客户端送来的系统日志。
+
+采用UDP协议发送和接收，在远程服务器端配置文件`/etc/rsyslog.conf`开启下面两行
+```
+# Provides UDP syslog reception
+$ModLoad imudp
+$UDPServerRun 514
+```
+
+修改配置文件后，你需要重启进程以激活修改（CentOS 7）：
+`systemctl restart rsyslog.service`
+
+测试时，可以重启某台客户端的rsyslog服务看看远程的服务器能不能收到日志，如果没有收到日志是不是防火墙挡住了，如果没有使用标准的端口还要看看是不是SELinux服务开启了。
+
+当然要想正确地发送，客户端的配置文件中的IP地址必须是远程rsyslog服务器的IP地址。***在这里需要注意的是，docker的container需要和物理机进行端口的映射，不然无法与外界通信，我们之前在启动容器的时候定义了三个端口映射，其中将物理机的10000号端口映射到了docker容器的514号端口。那么，此时，客户端container中配置文件`*.* @<logserver ip address>:514`应该改为`*.* @<logserver ip address>:10000`，因为实际通信使用的端口是10000。当然读者也可以选择自己喜欢的端口进行映射。***
+
+可以在服务器上使用命令`tailf /var/log/messages`实时监控是否收到了客户端发来的log信息。
 
 ### 3.&nbsp;修改log的时间显示格式
 #### 1)&nbsp;
@@ -113,3 +139,6 @@ systemctl restart rsyslog.service
 
 ### 5.&nbsp;按天切割log文件，将切割好的log文件放入Apache服务器的文件目录中
 #### 1)&nbsp;
+
+
+
