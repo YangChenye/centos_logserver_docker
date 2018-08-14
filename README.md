@@ -48,8 +48,10 @@ DocumentRoot "/Users/apple(当前用户名)/Sites"
 使用命令`docker exec -it <容器名或者ID> /bin/bash`，可以进入这个CentOS的容器。
 
 ### 2.&nbsp;向指定IP地址发送log
-本段一部分参考[CentOS上配置rsyslog客户端用以远程记录日志](https://www.linuxidc.com/Linux/2015-02/112989.htm)
-> rsyslog是一个开源工具，被广泛用于Linux系统以通过TCP/UDP协议转发或接收日志消息。rsyslog守护进程可以被配置成两种环境，一种是配置成日志收集服务器，rsyslog进程可以从网络中收集其它主机上的日志数据，这些主机会将日志配置为发送到另外的远程服务器。rsyslog的另外一个用法，就是可以配置为客户端，用来过滤和发送内部日志消息到本地文件夹（如/var/log）或一台可以路由到的远程rsyslog服务器上。
+
+> 本段一部分参考[CentOS上配置rsyslog客户端用以远程记录日志](https://www.linuxidc.com/Linux/2015-02/112989.htm)
+
+rsyslog是一个开源工具，被广泛用于Linux系统以通过TCP/UDP协议转发或接收日志消息。rsyslog守护进程可以被配置成两种环境，一种是配置成日志收集服务器，rsyslog进程可以从网络中收集其它主机上的日志数据，这些主机会将日志配置为发送到另外的远程服务器。rsyslog的另外一个用法，就是可以配置为客户端，用来过滤和发送内部日志消息到本地文件夹（如/var/log）或一台可以路由到的远程rsyslog服务器上。
 
 #### 1)&nbsp;安装Rsyslog守护进程
 在CentOS 6和7上，rsyslog守护进程已经预先安装了。要验证rsyslog是否已经安装到你的CentOS系统上，请执行如下命令：
@@ -103,7 +105,9 @@ systemctl restart rsyslog.service
 
 
 ### 2.&nbsp;接收user发送的log
-本段一部分参考[CentOS上配置rsyslog客户端用以远程记录日志](https://www.linuxidc.com/Linux/2015-02/112989.htm)和[centos7的syslog知识点](https://blog.csdn.net/u011630575/article/details/51966725)
+
+> 本段一部分参考[CentOS上配置rsyslog客户端用以远程记录日志](https://www.linuxidc.com/Linux/2015-02/112989.htm)和[centos7的syslog知识点](https://blog.csdn.net/u011630575/article/details/51966725)
+
 #### 1)&nbsp;安装Rsyslog守护进程
 在CentOS 6和7上，rsyslog守护进程已经预先安装了。要验证rsyslog是否已经安装到你的CentOS系统上，请执行如下命令：
 ```
@@ -171,7 +175,120 @@ $ActionFileDefaultTemplate CustomFormat
 然后重启 rsyslog 服务：`systemctl restart rsyslog.service`
 
 ### 4.&nbsp;启动并配置Apache服务器，使其他电脑能查看本机文件
-#### 1)&nbsp;
+
+> 本段参考[centos7 部署Apache服务器](https://blog.csdn.net/u011277123/article/details/77847360)和[CentOS Linux系统下更改Apache默认网站目录](https://blog.csdn.net/u014702999/article/details/55667090/)
+
+Apache程序是目前拥有很高市场占有率的Web服务程序之一，其跨平台和安全性广泛被认可且拥有快速、可靠、简单的API扩展。 它的名字取自美国印第安人土著语，寓意着拥有高超的作战策略和无穷的耐性，在红帽RHEL5、6、7系统中一直作为着默认的Web服务程序而使用，并且也一直是红帽RHCSA和红帽RHCE的考试重点内容。Apache服务程序可以运行在Linux系统、Unix系统甚至是Windows系统中，支持基于IP、域名及端口号的虚拟主机功能、支持多种HTTP认证方式、集成有代理服务器模块、安全Socket层(SSL)、能够实时监视服务状态与定制日志消息，并有着各类丰富的模块支持。
+
+#### 1)&nbsp;安装Apache服务
+
+安装Apache服务程序(apache服务的软件包名称叫做httpd)：`yum install httpd -y`。
+
+将Apache服务添加到开机自启中：
+```
+systemctl start httpd
+systemctl enable httpd
+```
+
+打开浏览器，访问网站`http://127.0.0.1`，查看是否出现默认引导页，若出现该网页，则启动成功。***需要注意的是，由于我们使用的是docker容器技术，如果直接访问`http://127.0.0.1`，访问的是本物理机的该地址，而不是container的。还记得之前我们在启动容器时进行了`-p 8000:80`的端口映射吗，由于Apache服务器默认监听的是80端口，所以我们才进行了这样的映射，那么在测试时，访问的网站就应该是`http://127.0.0.1:8000`了，也就是说，把物理机的8000端口映射到了container的80端口之后，对container80端口的访问实际应该通过8000端口进行。***
+
+#### 2)&nbsp;更改默认网站数据保存路径
+
+对于Linux系统中服务的配置就是在修改其配置文件，因此还需要知道这些配置文件分别干什么用的，以及存放到了什么位置：
+
+|配置文件|路径|
+|------|------|
+|服务目录|/etc/httpd|
+|主配置文件|/etc/httpd/conf/httpd.conf|
+|网站数据目录|/var/www/html|
+|访问日志|/var/log/httpd/access_log|
+|错误日志|/var/log/httpd/error_log|
+
+我们来看主配置文件：`vi /etc/httpd/conf/httpd.conf`
+
+其中最常用的参数为：
+
+|参数|功能|
+|------|------|
+|DocumentRoot|网站数据目录|
+|Listen|监听的IP地址与端口号|
+|DirectoryIndex|默认的索引页页面|
+
+从上面表格中可以得知DocumentRoot正是用于定义网站数据保存路径的参数，其参数的默认值是把网站数据存放到了`/var/www/html`目录中的，而网站首页的名称应该叫做index.html，因此可以手动的向这个目录中写入一个文件来替换掉httpd服务程序的默认网页，这种操作是立即生效的：
+`echo "hello everyone" > /var/www/html/index.html`
+
+访问`http://127.0.0.1:8000`可以看到主页已经被更改了，测试成功。
+
+现在我们来修改网站的数据目录：
+
+首先备份主配置文件`cp /etc/httpd/conf/httpd.conf /etc/httpd/conf/httpd.conf.bak`，新建一个文件夹`mkdir /var/logserver_website`，然后修改主配置文件中的DocumentRoot参数`vi /etc/httpd/conf/httpd.conf`，将它修改为我们刚才新建的文件夹。***需要注意的是，在修改主配置文件的时候，不能只修改DocumentRoot这一个参数，之后的所有出现`/var/www/html/`这个路径的地方都要修改为我们自己的路径，否则会出现无权访问的错误。修改如下：***
+```
+#
+# DocumentRoot: The directory out of which you will serve your
+# documents. By default, all requests are taken from this directory, but
+# symbolic links and aliases may be used to point to other locations.
+#
+DocumentRoot "/var/logserver_website"
+
+#
+# Relax access to content within /var/www.
+#
+<Directory "/var/logserver_website">
+    AllowOverride None
+    # Allow open access:
+    Require all granted
+</Directory>
+
+# Further relax access to the default document root:
+<Directory "/var/logserver_website">
+    #
+    # Possible values for the Options directive are "None", "All",
+    # or any combination of:
+    #   Indexes Includes FollowSymLinks SymLinksifOwnerMatch ExecCGI MultiViews
+    #
+    # Note that "MultiViews" must be named *explicitly* --- "Options All"
+    # doesn't give it to you.
+    #
+    # The Options directive is both complicated and important.  Please see
+    # http://httpd.apache.org/docs/2.4/mod/core.html#options
+    # for more information.
+    #
+    Options Indexes FollowSymLinks
+    
+    #
+    # AllowOverride controls what directives may be placed in .htaccess files.
+    # It can be "All", "None", or any combination of the keywords:
+    #   Options FileInfo AuthConfig Limit
+    #
+    AllowOverride None
+
+    #
+    # Controls who can get stuff from this server.
+    #
+    Require all granted
+</Directory>
+```
+
+保存配置文件，并重启Apache服务：`systemctl restart httpd`。
+
+#### 3)&nbsp;禁用默认引导页
+当然我们会发现，在经过这样一番操作之后，再次访问`http://127.0.0.1:8000`出现的仍旧是默认引导页面，并不是我们修改之后的文件夹，不论我们修改过的文件夹中是否放有文件（包括index.html文件）。（通过`echo "hello world" > /var/logserver_website/test.json`新建测试文件）
+
+仔细观察默认引导页，发现它可以被禁用：
+> To prevent this page from ever being used, follow the instructions in the file: `/etc/httpd/conf.d/welcome.conf`
+
+于是打开这个文件`vi /etc/httpd/conf.d/welcome.conf`，按照它的要求把所有的内容全部注释掉。
+
+这样再次访问网页，发现不会再出现默认引导页了，但是仍然看不到文件夹中的文件，屏幕上显示文件夹中一片空白，不论我们是否通过命令新建了文件，都是空白。
+
+#### 4)&nbsp;对新网站数据保存路径提权
+这个显示不出来文件的问题，查找资料发现是因为权限不够。因为你的`/var/logserver_website`的权限是750，apache这个用户没有权限访问，需要更改权限：
+
+`chmod -R 755 /var/logserver_website`
+
+-R表示递归操作，即对当前文件夹下的所有内容进行同样的提权。
+
+然后去访问`http://127.0.0.1:8000`，发现正常运行了，可以显示其中的文件和目录。
 
 ### 5.&nbsp;按天切割log文件，将切割好的log文件放入Apache服务器的文件目录中
 #### 1)&nbsp;
