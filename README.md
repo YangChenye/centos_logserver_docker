@@ -291,7 +291,165 @@ DocumentRoot "/var/logserver_website"
 然后去访问`http://127.0.0.1:8000`，发现正常运行了，可以显示其中的文件和目录。
 
 ### 5.&nbsp;按天切割log文件，将切割好的log文件放入Apache服务器的文件目录中
-#### 1)&nbsp;
+
+> 本段参考[CentOS 7下使用Logrotate管理日志](https://www.jianshu.com/p/6d3647f02437)
+
+Logrotate是一个日志文件管理工具。用来把旧文件轮转、压缩、删除，并且创建新的日志文件。我们可以根据日志文件的大小、天数等来转储，便于对日志文件管理，一般都是通过cron计划任务来完成的。
+
+#### 1)&nbsp;安装
+
+通过这个命令安装logrotate和cron：`yum install logrotate cron`。
+
+默认状态文件在`/var/lib/logrotate.status`
+
+默认配置文件是`/etc/logrotate.conf`
+
+#### 2)&nbsp;运行原理
+
+Logrotate是基于CRON来运行的，其脚本在`/etc/cron.daily/logrotate`
+```
+#!/bin/sh
+
+/usr/sbin/logrotate /etc/logrotate.conf
+EXITVALUE=$?
+if [ $EXITVALUE != 0 ]; then
+    /usr/bin/logger -t logrotate "ALERT exited abnormally with [$EXITVALUE]"
+fi
+exit 0
+```
+
+实际运行时，Logrotate会调用配置文件`/etc/logrotate.conf`
+```
+# see "man logrotate" for details
+# rotate log files weekly
+weekly
+
+# keep 4 weeks worth of backlogs
+rotate 4
+
+# create new (empty) log files after rotating old ones
+create
+
+# use date as a suffix of the rotated file
+dateext
+
+# uncomment this if you want your log files compressed
+#compress
+
+# RPM packages drop log rotation information into this directory
+include /etc/logrotate.d
+
+# no packages own wtmp and btmp -- we'll rotate them here
+/var/log/wtmp {
+    monthly
+    create 0664 root utmp
+        minsize 1M
+    rotate 1
+}
+
+/var/log/btmp {
+    missingok
+    monthly
+    create 0600 root utmp
+    rotate 1
+}
+
+# system-specific logs may be also be configured here.
+```
+
+这里的设置是全局的，而在`/etc/logrotate.d`目录里，可以定义每项应用服务的配置文件，并且定义会覆盖之前全局的定义。
+
+#### 3)&nbsp;配置参数
+
+|参数|功能|
+|------|------|
+|compress|使用gzip来压缩日志文件|
+|nocompress|日志不压缩的参数|
+|compresscmd|指定压缩工具，默认gzip|
+|uncompresscmd |指定解压工具，默认gunzip|
+|delaycompress |推迟要压缩的文件，直到下一轮询周期再执行压缩，可与compress搭配使用|
+|dateext |切割的文件名字带有日期信息|
+|dateformat |格式化归档日期后缀，只有%Y, %m,  %d 和%s|
+|daily |日志按天切割|
+|weekly |日志按周切割|
+|monthly |日志按月切割|
+|yearly |日志按年切割|
+|maxage count |删除count天前的切割日志文件|
+|rotate count |删除count个外的切割日志文件|
+|notifempty |文件为空时，不进行切割|
+|size size |日志文件根据大小规定进行切割，默认单位是byte，也可指定kb, M, G；So size 100, size 100k, size 100M and size 100G are all valid.|
+|minsize size |文件大小超过size后才能进行切割，此时会略过时间参数|
+|postrotate/endscript |在所有其它指令完成后，postrotate和endscript里面指定的命令将被执行|
+|sharedscripts |在所有的日志文件都切割完毕后统一执行一次脚本。当声明日志文件的时候使用通配符时需要用到|
+|olddir |指定切割后的日志文件存放在directory，必须和当前日志文件在同一个文件系统|
+|create mode owner group |新日志文件的权限，属主属组|
+
+#### 4)&nbsp;针对某一个具体文件进行配置
+
+在上一小节中，我们已经说了，可以在`/etc/logrotate.d`目录里定义每项应用服务的配置文件。现在我们就要针对`/var/log/messages`这个系统自身的log文件进行切割的配置文件的定义，为了实现对它的切割。
+
+创建messages的配置文件：`vi /etc/logrotate.d/messages `
+
+在其中输入
+```
+/var/log/messages {
+ missingok
+ copytruncate
+ notifempty
+ daily
+ rotate 30
+ olddir /var/logserver_website
+ dateext
+ postrotate
+  /bin/kill/ -HUP `cat /var/run/syslogd.pid 2>dev/null` 2 >/dev/null || true
+ endscript
+}
+```
+其中：
+
+`missingok`代表如果日志丢失，不报错继续切割下一个日志
+
+`copytruncate`用于还在打开中的日志文件，把当前日志备份并截断
+
+`notifempty`表示文件为空时，不进行切割
+
+`daily`表示按天切割
+
+`rotate 30`表示存储30天的日志文件
+
+`olddir /var/logserver_website`指定切割后的日志文件存放在/var/logserver_website
+
+`dateext`表示切割的文件名字带有日期信息
+
+`postrotate/endscript`表示切割之后执行命令，***如果没有这个语句的话，由于切割之后会删除原来的日志文件，会造成新的日志无法被记录下来。这个命令的意思是重启日志服务，也就会新建一个messages文件，这样切割之后新产生的日志文件就可以被继续记录***
+
+到这里，我们的配置文件就写好了，接下来需要进行一下测试：
+
+使用命令：`logrotate -d /etc/logrotate.d/messages`，可以查看当前文件是否需要切割，以及切割时的一些信息。
+
+在将它添加到定时任务之前，可以使用命令：`logrotate -f /etc/logrotate.d/messages`手动强制切割一次，测试是否可以正常切割。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
