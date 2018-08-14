@@ -434,18 +434,26 @@ include /etc/logrotate.d
 关于精准分割，我没有去尝试，不过可以参考[rsyslog、logrotate切割保存日志日期不准确的问题](https://blog.csdn.net/a_tu_/article/details/73558006)。对于定时的分割我想也可以参考这一篇文章。
 
 ### 6.&nbsp;按主机名和日期转存log信息，利用syslog协议
+#### 1)&nbsp;syslog协议
+![syslog](https://raw.githubusercontent.com/YangChenye/centos_logserver_docker/master/pictures/syslog-stant.png)
+syslog的协议中包含了时间和主机名，因此可以直接进行分类，不需要logrotate。
 
+#### 2)&nbsp;按主机名和日期转存log信息
+前面在构建转发log信息的user时，我们在其配置文件中加入了一些语句，使它将自己的所有log信息通过IP地址转发给一台远程的服务器。同样的，我们可以在logserver的配置文件中加入一些语句，命令logserver将自己的所有log信息按照一定的规则转存。结合之前的Apache服务器的构建，可以想到的是，如果可以让logserver将这些log信息转存到logserver自身的Apache服务器的网站资源目录下，我们就可以很方便的访问了。
 
+在`/etc/rsyslog.conf`中加入如下配置：
 
+```
+$template myFormat,"/var/logserver_website/%fromhost-ip%/%$year%%$month%%$day%.log"
+*.* ?myFormat
+& ~
+```
 
+这些语句的含义分别是：1.自定义一个按照主机ip地址存储的路径，存储时的文件名是日期；2.将所有的log信息按照ip地址和日期归类，存储到之前定义的路径和文件中；3.这个语句的含义我不太清楚，但是没有它就无法正确执行。
 
+这样就配置好了，我们可以检查这个路径，可以看到里面分类存储了log文件，这些log文件的划分很准确，因为这是与syslog协议相关的。
 
-
-
-
-
-
-
+需要注意的是，如果我们这时访问`http://127.0.0.1:8000`，里面并不会出现这些文件。这是因为这些新加进去的文件的权限问题，此时只需要再次执行`chmod -R 755 /var/logserver_website`进行权限的提升，就可以访问新加进去的文件了。
 
 
 
