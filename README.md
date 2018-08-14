@@ -132,7 +132,43 @@ $UDPServerRun 514
 可以在服务器上使用命令`tailf /var/log/messages`实时监控是否收到了客户端发来的log信息。
 
 ### 3.&nbsp;修改log的时间显示格式
-#### 1)&nbsp;
+#### 1)&nbsp;设置时区
+由于时区设置的原因，日志的时间戳会比本机时间晚8小时（北京时间），为了方便我们查看日志和之后实现日志的按天分割，需要将时区设置为北京时间。
+
+> 本节参考[CentOS 7 时区设置](https://blog.csdn.net/achang21/article/details/52606027)和[CentOS7修改时区的正确姿势](https://blog.csdn.net/yin138/article/details/52765089)
+
+在 CentOS 7 中, 引入了一个叫 timedatectl 的设置程序，用法很简单:
+```
+timedatectl  # 查看系统时间方面的各种状态
+timedatectl list-timezones # 列出所有时区
+timedatectl set-local-rtc 1 # 将硬件时钟调整为与本地时钟一致, 0 为设置为 UTC 时间
+timedatectl set-timezone Asia/Shanghai # 设置系统时区为上海
+```
+
+或者：
+
+正确的修改CentOS7 时区的方式：`ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime`；其他系统的修改文件可能是`/var/etc/localtime`。错误的方式：通过`cp`命令覆盖`/etc/localtime`时间。
+
+#### 2)&nbsp;修改时间戳显示格式
+
+> 本节参考[CentOS 7 修改日志时间戳格式](http://www.mamicode.com/info-detail-2373089.html)
+
+默认的时间戳格式是
+
+`Jul 14 13:30:01 localhost systemd: Starting Session 38 of user root.`
+
+看着不是很方便，现修改为以下格式
+
+`2018-07-14 13:32:57 desktop0 systemd: Starting System Logging Service...`
+
+修改`/etc/rsyslog.conf`为：
+```
+# Use default timestamp format
+#$ActionFileDefaultTemplate RSYSLOG_TraditionalFileFormat # 这行是原来的将它注释，添加下面两行
+$template CustomFormat,"%$NOW% %TIMESTAMP:8:15% %HOSTNAME% %syslogtag% %msg%\n"
+$ActionFileDefaultTemplate CustomFormat
+```
+然后重启 rsyslog 服务：`systemctl restart rsyslog.service`
 
 ### 4.&nbsp;启动并配置Apache服务器，使其他电脑能查看本机文件
 #### 1)&nbsp;
