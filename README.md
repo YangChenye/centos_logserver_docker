@@ -292,7 +292,7 @@ DocumentRoot "/var/logserver_website"
 
 ### 5.&nbsp;按天切割log文件，将切割好的log文件放入Apache服务器的文件目录中
 
-> 本段参考[CentOS 7下使用Logrotate管理日志](https://www.jianshu.com/p/6d3647f02437)
+> 本段参考[CentOS 7下使用Logrotate管理日志](https://www.jianshu.com/p/6d3647f02437)和[利用Centos6系统自带的logrotate切割nginx日志](https://blog.csdn.net/magerguo/article/details/49638469)
 
 Logrotate是一个日志文件管理工具。用来把旧文件轮转、压缩、删除，并且创建新的日志文件。我们可以根据日志文件的大小、天数等来转储，便于对日志文件管理，一般都是通过cron计划任务来完成的。
 
@@ -429,11 +429,11 @@ include /etc/logrotate.d
 
 在将它添加到定时任务之前，可以使用命令：`logrotate -f /etc/logrotate.d/messages`手动强制切割一次，测试是否可以正常切割。
 
+***需要注意的是，切割之后保存的文件名为messages-20180807，这个文件包含了切割时刻之前的messages文件内容，也就是会把现有messages里面所有东西切割成一个文件，命名为切割时刻的日期。如果上一次切割是在20180805，那么这个20180807的文件会包含0805-0807的所有内容。而且，如果已经有20180807这个文件存在，当天（20180807）再对messages进行切割，并不能切割成功，不会动messages里的内容，也不会动原20180807里的内容，仍旧像切割之前一样存储。这也就意味着，我们必须完全精确的在每天23:59:59进行切割，否则就会出现对log信息的划分错误，很不利于日后的查看***
 
+关于精准分割，我没有去尝试，不过可以参考[rsyslog、logrotate切割保存日志日期不准确的问题](https://blog.csdn.net/a_tu_/article/details/73558006)。对于定时的分割我想也可以参考这一篇文章。
 
-
-
-
+### 6.&nbsp;按主机名和日期转存log信息，利用syslog协议
 
 
 
