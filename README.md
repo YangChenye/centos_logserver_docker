@@ -436,6 +436,7 @@ include /etc/logrotate.d
 ### 6.&nbsp;按主机名和日期转存log信息，利用syslog协议
 #### 1)&nbsp;syslog协议
 ![syslog](https://raw.githubusercontent.com/YangChenye/centos_logserver_docker/master/pictures/syslog-stant.png)
+
 syslog的协议中包含了时间和主机名，因此可以直接进行分类，不需要logrotate。
 
 #### 2)&nbsp;按主机名和日期转存log信息
