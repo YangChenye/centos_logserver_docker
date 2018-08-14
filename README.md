@@ -434,6 +434,8 @@ include /etc/logrotate.d
 关于精准分割，我没有去尝试，不过可以参考[rsyslog、logrotate切割保存日志日期不准确的问题](https://blog.csdn.net/a_tu_/article/details/73558006)。对于定时的分割我想也可以参考这一篇文章。
 
 ### 6.&nbsp;按主机名和日期转存log信息，利用syslog协议
+> 本段参考[教你一步一步利用rsyslog搭建自己的日志系统](https://cnodejs.org/topic/598a6da62d4b0af4750353ae)和[Centos6.5部署Rsyslog-日志的存储方式及监测服务状态](https://www.cnblogs.com/daynote/p/8996160.html)
+
 #### 1)&nbsp;syslog协议
 ![syslog](https://raw.githubusercontent.com/YangChenye/centos_logserver_docker/master/pictures/syslog-stant.png)
 
