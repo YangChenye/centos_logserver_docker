@@ -458,9 +458,12 @@ $template myFormat,"/var/logserver_website/%fromhost-ip%/%$year%%$month%%$day%.l
 
 需要注意的是，如果我们这时访问`http://127.0.0.1:8000`，里面并不会出现这些文件。这是因为这些新加进去的文件的权限问题，此时只需要再次执行`chmod -R 755 /var/logserver_website`进行权限的提升，就可以访问新加进去的文件了。
 
+## 四.&nbsp;后续的工作
+现在已有的是从某一个端口向外发送信息的待测试服务器，量很大。我们只能去监听它，不能说在待测设备上面安装一个服务。那么“在待测机上配置socat，让它们把自己的端口转发给logserver，logserver负责接收并转存（三.2.的方法）”行不通。并且由于发送出来的信息不符合syslog协议，因此基于syslog的转存（三.6.的方法）行不通。
 
+尝试用socat监听10.0.21.101:5000：```socat - TCP:10.0.21.101:5000 | echo "`date`" > /var/log/messages```
 
-
+试着将屏幕上打印的监听到的内容写入messages文件，然后再尝试使用logrotate分割。
 
 
 
